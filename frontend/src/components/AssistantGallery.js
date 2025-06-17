@@ -1,7 +1,7 @@
 import React from 'react';
 import AssistantListItem from './AssistantListItem'; // Importa o novo componente
 
-const AssistantGallery = ({ assistants, onSelectAssistant }) => {
+const AssistantGallery = ({ assistants, onSelectAssistant, onShowHistory  }) => {
     return (
         <div>
             <h1 className="text-3xl font-bold mb-6 text-white">Assistentes Virtuais</h1>
@@ -12,6 +12,7 @@ const AssistantGallery = ({ assistants, onSelectAssistant }) => {
                         key={assistant.id}
                         assistant={assistant}
                         onSelectAssistant={onSelectAssistant}
+                        onShowHistory={onShowHistory}
                     />
                 ))}
             </div>

@@ -17,11 +17,12 @@ def get_db() -> Session:
     finally:
         db.close()
 
-def log_action(db: Session, ip: str, action: str, app_id: Optional[int] = None):
-    try:
-        db_log = Log(ip=ip, action=action, app_id=app_id)
-        db.add(db_log)
-        db.commit()
-        db.refresh(db_log)
-    except Exception as e:
-        db.rollback()
+def log_action(db: Session, email: str, action: str, app_id: int = None):
+    """
+    Cria e salva um registro de log no banco de dados.
+    """
+    # Salva o email no campo 'ip' da tabela
+    log_entry = db_models.Log(ip=email, action=action, app_id=app_id)
+    db.add(log_entry)
+    db.commit()
+    db.refresh(log_entry)

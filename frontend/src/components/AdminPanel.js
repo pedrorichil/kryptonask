@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { PlusCircle, Edit, Trash2, Shield, Settings, FileText, BarChart2 } from 'lucide-react';
 
-// Componente de formulário dinâmico para criar/editar
+// Componente de formulário dinâmico (sem alterações)
 const ResourceForm = ({ item, view, onSave, onCancel }) => {
     const [formData, setFormData] = useState({});
 
     useEffect(() => {
-        // Popula o formulário com os dados do item ao editar, ou deixa em branco ao criar
         setFormData(item || {});
     }, [item]);
 
@@ -48,28 +47,20 @@ const ResourceForm = ({ item, view, onSave, onCancel }) => {
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-[#2b2e47] p-6 rounded-lg w-full max-w-lg">
-                <h2 className="text-2xl font-bold mb-4">{item ? 'Editar' : 'Criar Novo'} {view.slice(0, -1)}</h2>
+                <h2 className="text-2xl font-bold mb-4">{item.id ? 'Editar' : 'Criar Novo'} {view.slice(0, -1)}</h2>
                 <form onSubmit={handleSubmit}>
                     {fields.map(field => (
                         <div key={field.name} className="mb-4">
                             <label className="block text-gray-400 mb-1" htmlFor={field.name}>{field.label}</label>
                             {field.type === 'textarea' ? (
                                 <textarea
-                                    id={field.name}
-                                    name={field.name}
-                                    value={formData[field.name] || ''}
-                                    onChange={handleChange}
-                                    className="w-full p-2 bg-[#202231] rounded border border-gray-600"
-                                    rows="3"
+                                    // ... (props existentes)
+                                    required // Adiciona validação nativa do navegador
                                 ></textarea>
                             ) : (
                                 <input
-                                    type={field.type}
-                                    id={field.name}
-                                    name={field.name}
-                                    value={formData[field.name] || ''}
-                                    onChange={handleChange}
-                                    className="w-full p-2 bg-[#202231] rounded border border-gray-600"
+                                    // ... (props existentes)
+                                    required // Adiciona validação nativa do navegador
                                 />
                             )}
                         </div>
@@ -85,13 +76,12 @@ const ResourceForm = ({ item, view, onSave, onCancel }) => {
 };
 
 
-const AdminPanel = ({ onBack }) => {
-    const [view, setView] = useState('dashboard'); // 'dashboard', 'admins', 'apps', 'setores', 'logs'
+const AdminPanel = ({ onBack, user }) => {
+    const [view, setView] = useState('dashboard');
     const [data, setData] = useState([]);
     const [editingItem, setEditingItem] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-
-    // Busca os dados da API sempre que a 'view' mudar
+    
     useEffect(() => {
         if (view === 'dashboard') {
             setData([]);
@@ -120,14 +110,12 @@ const AdminPanel = ({ onBack }) => {
 
         try {
             if (id) {
-                // Atualizar (PUT)
                 await api.put(`/${resource}/${id}`, formData);
             } else {
-                // Criar (POST)
                 await api.post(`/${resource}/`, formData);
             }
-            setView('dashboard'); // Volta para o dashboard para forçar a recarga
-            setView(resource);    // Volta para a view atual para mostrar os dados atualizados
+            setView('dashboard');
+            setView(resource);
         } catch (error) {
             console.error(`Erro ao salvar ${resource}:`, error);
             alert(`Não foi possível salvar. Verifique o console para mais detalhes.`);
@@ -143,6 +131,7 @@ const AdminPanel = ({ onBack }) => {
         }
 
         try {
+            // Nota: a API de Admins não possui um endpoint DELETE, então isso falhará para admins.
             await api.delete(`/${resource}/${id}`);
             setData(prevData => prevData.filter(item => item.id !== id));
         } catch (error) {
@@ -151,38 +140,71 @@ const AdminPanel = ({ onBack }) => {
         }
     };
 
+    const handleSetView = (newView) => {
+        setView(newView);
+        // --- LOG DE AÇÃO COM EMAIL ---
+        if (user) {
+            api.post('/logs/', { 
+                ip: user.email, // Enviando email no campo 'ip'
+                action: `Admin visualizou a seção: ${newView}`
+            });
+        }
+    };
+
     const renderTable = () => {
         if (isLoading) return <p>Carregando...</p>;
-        if (data.length === 0) return <p>Nenhum item encontrado.</p>;
+        if (!data || data.length === 0) return <p>Nenhum item encontrado.</p>;
 
         const headers = Object.keys(data[0] || {});
 
         return (
-            <table className="w-full text-left table-auto">
-                <thead>
-                    <tr className="border-b border-gray-700">
-                        {headers.map(h => <th key={h} className="p-2">{h}</th>)}
-                        {view !== 'logs' && <th className="p-2">Ações</th>}
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.map(item => (
-                        <tr key={item.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                            {headers.map(header => <td key={`${item.id}-${header}`} className="p-2 truncate max-w-xs">{item[header]}</td>)}
-                            {view !== 'logs' && (
-                                <td className="p-2 flex gap-2">
-                                    <button onClick={() => setEditingItem(item)} className="text-yellow-400 hover:text-yellow-300"><Edit size={18} /></button>
-                                    <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
-                                </td>
-                            )}
+            <div className="overflow-x-auto">
+                <table className="w-full text-left table-auto">
+                    <thead>
+                        <tr className="border-b border-gray-700">
+                            {headers.map(h => <th key={h} className="p-2 whitespace-nowrap">{h}</th>)}
+                            {view !== 'logs' && <th className="p-2">Ações</th>}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {data.map(item => (
+                            <tr key={item.id} className="border-b border-gray-800 hover:bg-gray-800/50">
+                                {headers.map(header => {
+                                    // --- INÍCIO DA ALTERAÇÃO ---
+                                    // Verifica se estamos na view 'apps' e na coluna 'imagem'
+                                    if (view === 'apps' && header === 'imagem' && item[header]) {
+                                        return (
+                                            <td key={`${item.id}-${header}`} className="p-2">
+                                                <img 
+                                                    src={`data:image/png;base64,${item[header]}`} 
+                                                    alt="Ícone do App" 
+                                                    className="w-10 h-10 object-cover rounded-md bg-gray-700"
+                                                />
+                                            </td>
+                                        );
+                                    }
+                                    // Para todas as outras células, renderiza o texto
+                                    return (
+                                        <td key={`${item.id}-${header}`} className="p-2 truncate max-w-xs align-middle">
+                                            {String(item[header])}
+                                        </td>
+                                    );
+                                    // --- FIM DA ALTERAÇÃO ---
+                                })}
+                                {view !== 'logs' && (
+                                    <td className="p-2 flex gap-2 align-middle">
+                                        <button onClick={() => setEditingItem(item)} className="text-yellow-400 hover:text-yellow-300"><Edit size={18} /></button>
+                                        <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         );
     };
     
-    // Botões de Navegação
     const navButtons = [
         { key: 'admins', label: 'Admins', icon: <Shield /> },
         { key: 'apps', label: 'Apps', icon: <Settings /> },
@@ -195,7 +217,6 @@ const AdminPanel = ({ onBack }) => {
             <button onClick={onBack} className="mb-6 text-blue-400 hover:underline">&larr; Voltar para a Galeria</button>
             <h1 className="text-3xl font-bold mb-6">Painel de Administração</h1>
 
-            {/* Navegação do Painel */}
             <div className="flex gap-4 mb-8">
                 {navButtons.map(btn => (
                      <button 
@@ -209,7 +230,6 @@ const AdminPanel = ({ onBack }) => {
                 ))}
             </div>
 
-            {/* Conteúdo da View */}
             <div className="bg-[#1a1c29] p-6 rounded-lg">
                 {view !== 'dashboard' && (
                     <div className="flex justify-between items-center mb-4">
@@ -225,7 +245,6 @@ const AdminPanel = ({ onBack }) => {
                 {view === 'dashboard' ? <p>Selecione uma categoria acima para gerenciar.</p> : renderTable()}
             </div>
 
-            {/* Formulário Modal */}
             {editingItem && (
                 <ResourceForm 
                     item={editingItem}

@@ -1,28 +1,33 @@
-from fastapi import APIRouter, Depends, Query, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 from typing import List
-from sqlalchemy.orm import Session
-from models import *
 from database import get_db
-from sqlalchemy.orm import Session
-from models import *
+import models
 
-router = APIRouter(prefix="/api/v1/logs", tags=["Logs"])
+router = APIRouter(
+    prefix="/api/v1/logs",
+    tags=["Logs"]
+)
 
-
-## AUXILIARES ##########################################################################
-@router.get("/", response_model=List[LogResponse])
+@router.get("/", response_model=List[models.LogResponse])
 def get_logs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    logs = db.query(Log).offset(skip).limit(limit).all()
+    """Retorna os logs mais recentes."""
+    logs = db.query(models.Log).order_by(models.Log.created_at.desc()).offset(skip).limit(limit).all()
     return logs
 
-@router.post("/", response_model=LogResponse)
-def create_log(log: LogCreate, db: Session = Depends(get_db)):
-    try:
-        db_log = Log(ip=log.ip, action=log.action, app_id=log.app_id)
-        db.add(db_log)
-        db.commit()
-        db.refresh(db_log)
-        return db_log
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Erro ao registrar o log.")
+# Rota POST ajustada para receber o payload completo do frontend
+@router.post("/", response_model=models.LogResponse, status_code=201)
+def create_log_entry(log_data: models.LogCreate, db: Session = Depends(get_db)):
+    """
+    Cria um novo registro de log. 
+    Espera que o frontend envie um objeto completo, incluindo o campo 'ip' (que usaremos para o e-mail).
+    """
+    log_entry = models.Log(
+        ip=log_data.ip, # O frontend enviará o e-mail neste campo
+        action=log_data.action, 
+        app_id=log_data.app_id
+    )
+    db.add(log_entry)
+    db.commit()
+    db.refresh(log_entry)
+    return log_entry

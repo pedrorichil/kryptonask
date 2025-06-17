@@ -13,11 +13,11 @@ class ChatHistory(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_email = Column(String)
-    app_id = Column(String)
+    app_id = Column(Integer) 
     sender = Column(String)
     message = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    session = Column(String)  # <- corrige para String se o banco usa UUID/texto
+    session = Column(String)
 
 
 #############################################################################################
@@ -147,3 +147,8 @@ class ChatMessageResponse(ChatMessageBase):
 
     class Config:
         from_attributes = True
+
+class FrontendLogCreate(BaseModel):
+    action: str
+    email: str 
+    app_id: Optional[int] = None
