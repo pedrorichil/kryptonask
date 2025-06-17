@@ -7,12 +7,11 @@ import time
 
 load_dotenv()
 
-# --- Configuração do Redis ---
+# --- Configuração do Redis (sem autenticação) ---
 REDIS_HOST = os.getenv("REDIS_HOST", "192.168.22.29")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
-REDIS_PASSWORD = quote_plus(os.getenv("REDIS_PASSWORD", "KOLZEoUP2KMolrglELJ1Mdi7Fnj1JRSqYgRh6cJTnOb7XemFqVG3e9az5M1SUuWA"))
 
-REDIS_URL = "redis://default:KOLZEoUP2KMolrglELJ1Mdi7Fnj1JRSqYgRh6cJTnOb7XemFqVG3e9az5M1SUuWA@192.168.22.29:6379/0"
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
 # --- Configuração do Celery ---
 celery_app = Celery(
@@ -20,7 +19,6 @@ celery_app = Celery(
     broker=os.getenv("CELERY_BROKER_URL", REDIS_URL),
     backend=os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
 )
-
 # --- Funções auxiliares ---
 
 def is_valid_thread(thread_id: str) -> bool:
