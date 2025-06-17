@@ -6,7 +6,7 @@ import ChatInterface from './components/ChatInterface';
 import AdminPanel from './components/AdminPanel';
 import HomePage from './components/HomePage';
 import { useAuth } from './AuthContext';
-import ConversationHistory from './components/ConversationHistory';
+import ConversationHistory from './components/ConversationHistory'; // CORREÇÃO: Importação adicionada
 import { Mail, FileText, BarChart2, Users } from 'lucide-react';
 
 const ICONS = {
@@ -30,38 +30,36 @@ export default function App() {
     const [historyApp, setHistoryApp] = useState(null);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [sectorsRes, appsRes] = await Promise.all([
-                    api.get('/setores/'),
-                    api.get('/apps/'),
-                ]);
-                const sectorsData = sectorsRes.data.map(sector => ({ id: sector.setor.toLowerCase(), name: sector.nome, icon: ICONS[sector.setor.toLowerCase()] || <Mail className="w-5 h-5" />, }));
-                setSectors(sectorsData);
-                const appsData = appsRes.data.map(app => ({ ...app, sector: app.grupo.toLowerCase(), }));
-                setAllAssistants(appsData);
-                const sortedApps = [...appsData].sort((a, b) => b.id - a.id);
-                setRecentAssistants(sortedApps.slice(0, 6));
-            } catch (error) {
-                console.error("Erro ao carregar dados iniciais:", error);
-            }
-        };
-        fetchData();
-    }, []);
+        if (user) {
+            const fetchData = async () => {
+                try {
+                    const [sectorsRes, appsRes] = await Promise.all([
+                        api.get('/setores/'),
+                        api.get('/apps/'),
+                    ]);
+                    const sectorsData = sectorsRes.data.map(sector => ({ id: sector.setor.toLowerCase(), name: sector.nome, icon: ICONS[sector.setor.toLowerCase()] || <Mail className="w-5 h-5" />, }));
+                    setSectors(sectorsData);
+                    const appsData = appsRes.data.map(app => ({ ...app, sector: app.grupo.toLowerCase(), }));
+                    setAllAssistants(appsData);
+                    const sortedApps = [...appsData].sort((a, b) => b.id - a.id);
+                    setRecentAssistants(sortedApps.slice(0, 6));
+                } catch (error) {
+                    console.error("Erro ao carregar dados iniciais:", error);
+                }
+            };
+            fetchData();
+        }
+    }, [user]);
 
     const handleStartNewChat = (assistant) => {
         setSelectedAssistant(assistant);
         const newSessionId = `session_${Date.now()}`;
         setCurrentSessionId(newSessionId);
-        setCurrentThreadId(null); 
+        setCurrentThreadId(null);
         setMessages([{ id: 'welcome', text: `Olá! Como posso te ajudar com ${assistant.titulo}?`, sender: 'ai' }]);
         setPage('chat');
         if (user) {
-            api.post('/logs/', { 
-                ip: user.email, // Enviando email no campo 'ip'
-                action: `Iniciou chat com o app: "${assistant.titulo}"`, 
-                app_id: assistant.id
-            });
+            api.post('/logs/', { ip: user.email, action: `Iniciou chat com o app: "${assistant.titulo}"`, app_id: assistant.id });
         }
     };
 
@@ -73,10 +71,9 @@ export default function App() {
     const handleLoadSession = async (sessionId, assistant) => {
         setSelectedAssistant(assistant);
         setCurrentSessionId(sessionId);
-        setCurrentThreadId(null); // Reseta a thread da OpenAI, o histórico é do nosso DB
+        setCurrentThreadId(null);
         setPage('chat');
         setIsAiTyping(true);
-
         try {
             const historyRes = await api.get('/chat/history', {
                 params: { email: user.email, app_id: assistant.id, session_id: sessionId }
@@ -93,35 +90,14 @@ export default function App() {
         }
     };
 
-    const handleSelectAssistant = (assistant) => {
-        setSelectedAssistant(assistant);
-        // Gera um novo ID de sessão para cada nova conversa.
-        const newSessionId = `session_${Date.now()}`;
-        setCurrentSessionId(newSessionId);
-        setCurrentThreadId(null); 
-        setMessages([{ id: 'welcome', text: `Olá! Como posso te ajudar com ${assistant.titulo}?`, sender: 'ai' }]);
-        setPage('chat');
-    };
-    
-    // --- NOVA FUNÇÃO ---
-    // Função auxiliar para salvar mensagens no banco de dados
-    const saveMessageToHistory = async (messageText, sender) => {
-        // Garante que temos todas as informações necessárias antes de salvar
-        if (!user || !selectedAssistant || !currentSessionId) return;
+    // CORREÇÃO: Removida a função duplicada e não utilizada 'handleSelectAssistant'.
 
+    const saveMessageToHistory = async (messageText, sender) => {
+        if (!user || !selectedAssistant || !currentSessionId) return;
         try {
-            const payload = {
-                user_email: user.email,
-                app_id: selectedAssistant.id,
-                sender: sender,
-                message: messageText,
-                session: currentSessionId,
-            };
-            // A rota é /chat/, conforme o 'prefix' do router chat_history.py
-            await api.post('/chat/', payload);
+            await api.post('/chat/', { user_email: user.email, app_id: selectedAssistant.id, sender: sender, message: messageText, session: currentSessionId });
         } catch (error) {
             console.error(`Falha ao salvar mensagem (${sender}) no histórico:`, error);
-            // Não exibimos um alerta para o usuário, pois é uma operação de fundo.
         }
     };
 
@@ -129,31 +105,16 @@ export default function App() {
         const userMessage = { text, sender: 'user' };
         setMessages(prev => [...prev, userMessage]);
         setIsAiTyping(true);
-
-        // --- ALTERAÇÃO 1 ---
-        // Salva a mensagem do usuário no histórico
         await saveMessageToHistory(text, 'user');
-
         try {
-            const requestBody = {
-                message: text,
-                assistant_id: selectedAssistant.url,
-                thread_id: currentThreadId
-            };
-            
+            const requestBody = { message: text, assistant_id: selectedAssistant.url, thread_id: currentThreadId };
             const response = await api.post('/assistant/chat', requestBody);
-            
-            const aiResponseText = response.data.response;
+            const aiResponseText = response.data.response || "Não recebi uma resposta válida.";
             const newThreadId = response.data.thread_id;
-
             const aiMessage = { text: aiResponseText, sender: 'ai' };
             setMessages(prev => [...prev, aiMessage]);
             setCurrentThreadId(newThreadId);
-            
-            // --- ALTERAÇÃO 2 ---
-            // Salva a resposta da IA no histórico
             await saveMessageToHistory(aiResponseText, 'ai');
-
         } catch (error) {
             console.error("Erro ao enviar mensagem:", error);
             const errorMessage = { text: "Desculpe, ocorreu um erro na comunicação.", sender: 'ai' };
@@ -171,10 +132,7 @@ export default function App() {
     const handleSelectAdmin = () => {
         setPage('admin');
         if (user) {
-            api.post('/logs/', { 
-                ip: user.email, // Enviando email no campo 'ip'
-                action: 'Acessou o Painel de Administração'
-            });
+            api.post('/logs/', { ip: user.email, action: 'Acessou o Painel de Administração' });
         }
     };
     
@@ -183,26 +141,26 @@ export default function App() {
 
         if (isSectorPage) {
             const filteredAssistants = allAssistants.filter(a => a.sector === page);
-            return <AssistantGallery 
-                        assistants={filteredAssistants} 
-                        onSelectAssistant={handleStartNewChat}
-                        onShowHistory={handleShowHistory} // Passa a nova função
-                    />;
+            return <AssistantGallery assistants={filteredAssistants} onSelectAssistant={handleStartNewChat} onShowHistory={handleShowHistory} />;
         }
 
         switch (page) {
             case 'home':
-                 return <HomePage userName={user ? user.nome.split(' ')[0] : 'Usuário'} recentAssistants={recentAssistants} onSelectAssistant={handleStartNewChat}/>;
-            case 'history': // Nova página de histórico
-                return <ConversationHistory 
-                            app={historyApp}
-                            onLoadSession={handleLoadSession}
-                            onBack={() => setPage('home')}
-                        />;
+                return <HomePage userName={user ? user.nome.split(' ')[0] : 'Usuário'} recentAssistants={recentAssistants} onSelectAssistant={handleStartNewChat}/>;
+            case 'history':
+                return <ConversationHistory app={historyApp} onLoadSession={handleLoadSession} onBack={() => setPage('home')} />;
             case 'chat':
-                return <ChatInterface /* ...props... */ />;
+                // CORREÇÃO: Passando todas as props necessárias para o ChatInterface
+                return <ChatInterface
+                    assistant={selectedAssistant}
+                    onBack={() => setPage('home')}
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isAiTyping={isAiTyping}
+                />;
             case 'admin':
-                return <AdminPanel onBack={() => setPage('home')} />;
+                // CORREÇÃO: Passando a prop 'user' para o AdminPanel
+                return <AdminPanel onBack={() => setPage('home')} user={user} />;
             default:
                 return <HomePage userName={user ? user.nome.split(' ')[0] : 'Usuário'} recentAssistants={recentAssistants} onSelectAssistant={handleStartNewChat}/>;
         }

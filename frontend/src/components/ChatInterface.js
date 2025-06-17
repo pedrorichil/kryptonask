@@ -17,12 +17,13 @@ const ChatInterface = ({ assistant, onBack, messages = [], onSendMessage, isAiTy
     const chatContainerRef = useRef(null);
 
     useEffect(() => {
+        // Efeito para rolar para a última mensagem
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages, isAiTyping]);
     
-    // A verificação condicional agora vem DEPOIS dos Hooks.
+    // A verificação condicional agora vem DEPOIS dos Hooks, o que é permitido.
     if (!assistant) {
         return (
             <div className="flex items-center justify-center h-full text-white">
@@ -50,6 +51,7 @@ const ChatInterface = ({ assistant, onBack, messages = [], onSendMessage, isAiTy
 
     return (
         <div className="flex flex-col h-full bg-[#202231]">
+            {/* Cabeçalho */}
             <div className="flex items-center p-4 border-b border-gray-700 flex-shrink-0">
                 <button onClick={onBack} className="mr-4 p-2 rounded-full hover:bg-gray-700/50 transition-colors text-gray-200">
                     &larr; Voltar
@@ -58,6 +60,7 @@ const ChatInterface = ({ assistant, onBack, messages = [], onSendMessage, isAiTy
                 <h2 className="text-xl font-bold text-white">{assistant.titulo}</h2>
             </div>
 
+            {/* Corpo do Chat (agora com a ref no lugar certo) */}
             <div className="flex-grow p-4 overflow-y-auto" ref={chatContainerRef}>
                 {hasConversationStarted ? (
                     <div>
@@ -86,6 +89,7 @@ const ChatInterface = ({ assistant, onBack, messages = [], onSendMessage, isAiTy
                 )}
             </div>
 
+            {/* Input de Mensagem */}
             <div className="p-4 border-t border-gray-700 flex-shrink-0">
                  <form onSubmit={handleFormSubmit} className="flex items-center gap-2 max-w-4xl mx-auto w-full">
                     <textarea
