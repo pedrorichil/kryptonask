@@ -56,7 +56,7 @@ export default function App() {
     const handleSendMessage = async (text) => {
         const userMessage = { text, sender: 'user' };
         setMessages(prev => [...prev, userMessage]);
-        setIsAiTyping(true);
+        setIsAiTyping(true); // Liga o indicador "digitando"
 
         try {
             const requestBody = {
@@ -64,44 +64,24 @@ export default function App() {
                 assistant_id: selectedAssistant.url,
                 thread_id: currentThreadId
             };
-            
-            // 1. Inicia a tarefa no backend e obtém o task_id
-            const initialResponse = await api.post('/assistant/chat', requestBody);
-            const taskId = initialResponse.data.task_id;
 
-            // 2. Começa a verificar o resultado da tarefa (polling)
-            const pollForResult = async () => {
-                const resultResponse = await api.get(`/assistant/chat/result/${taskId}`);
-                const { status, data, error } = resultResponse.data;
-
-                if (status === 'SUCCESS') {
-                    // Tarefa concluída! Adiciona a resposta e atualiza a thread.
-                    const aiMessage = { text: data.response, sender: 'ai' };
-                    setMessages(prev => [...prev, aiMessage]);
-                    setCurrentThreadId(data.thread_id);
-                    setIsAiTyping(false);
-                } else if (status === 'FAILURE') {
-                    // Tarefa falhou. Exibe uma mensagem de erro.
-                    console.error("Erro na tarefa do Celery:", error);
-                    const errorMessage = { text: "Ocorreu um erro no processamento da sua mensagem.", sender: 'ai' };
-                    setMessages(prev => [...prev, errorMessage]);
-                    setIsAiTyping(false);
-                } else {
-                    // Tarefa ainda pendente, verifica novamente após um intervalo.
-                    setTimeout(pollForResult, 2000); // Verifica a cada 2 segundos
-                }
-            };
+            // Faz uma única chamada e aguarda a resposta completa
+            const response = await api.post('/assistant/chat', requestBody);
             
-            // Inicia a primeira verificação
-            setTimeout(pollForResult, 1000);
+            const aiMessage = { text: response.data.response, sender: 'ai' };
+            setCurrentThreadId(response.data.thread_id);
+
+            setMessages(prev => [...prev, aiMessage]);
 
         } catch (error) {
-            console.error("Erro ao iniciar a tarefa de chat:", error);
-            const errorMessage = { text: "Não foi possível enviar sua mensagem para a fila.", sender: 'ai' };
+            console.error("Erro ao enviar mensagem:", error);
+            const errorMessage = { text: "Desculpe, ocorreu um erro na comunicação.", sender: 'ai' };
             setMessages(prev => [...prev, errorMessage]);
-            setIsAiTyping(false);
+        } finally {
+            setIsAiTyping(false); // Desliga o indicador
         }
     };
+
     
     const handleSelectPage = (pageName) => {
         setPage(pageName);
