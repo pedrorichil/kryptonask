@@ -1,0 +1,26 @@
+name: Deploy to Dokku
+
+on:
+  push:
+    branches:
+      - master  # altere para 'master' se for o caso
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout o código
+      uses: actions/checkout@v3
+
+    - name: Adiciona a chave SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.DOKKU_SSH_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan -H 192.168.22.48 >> ~/.ssh/known_hosts
+
+    - name: Push para o Dokku
+      run: |
+        git remote add dokku dokku@192.168.22.48:quickfix-app-bi
+        git push dokku HEAD:master

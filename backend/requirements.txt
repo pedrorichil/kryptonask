@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+pydantic[email]
+sqlalchemy
+pymysql
+openai==1.78.0
+tiktoken
+celery
+redis
+python-dotenv
+Pillow
+honcho

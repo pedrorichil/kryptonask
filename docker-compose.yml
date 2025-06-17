@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Serviço do Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "5083:80" 
+    depends_on:
+      - backend
+
+  # Serviço do Redis
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Serviço da API FastAPI
+  backend:
+    build: ./backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8007:8000" # Porta 8007 do PC para a 8000 do contêiner
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=sqlite:///./kryptonask.db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:is_valid_thread_celery
+    depends_on:
+      - redis
+
+  # Serviço do Celery Worker
+  worker:
+    build: ./backend
+    command: celery -A celery_worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - backend
+
+volumes:
+  redis_data:
