@@ -18,7 +18,7 @@ router = APIRouter(
 )
 
 TOKEN_VERIFICATION_URL_TEMPLATE = "https://apiintranet.kryptonbpo.com.br/rag-ia-kryptonbpo?{}"
-BEARER_KEY = os.getenv("BEARER_KEY")
+BEARER_KEY = "Tgfhrb%$39gk@1856"
 
 @router.post("/validate-token")
 # Adicionamos a dependência do banco de dados (db: Session)
