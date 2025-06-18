@@ -42,7 +42,7 @@ export default function App() {
                     const appsData = appsRes.data.map(app => ({ ...app, sector: app.grupo.toLowerCase(), }));
                     setAllAssistants(appsData);
                     const sortedApps = [...appsData].sort((a, b) => b.id - a.id);
-                    setRecentAssistants(sortedApps.slice(0, 6));
+                    setRecentAssistants(sortedApps.slice(0, 9));
                 } catch (error) {
                     console.error("Erro ao carregar dados iniciais:", error);
                 }
