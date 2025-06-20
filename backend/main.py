@@ -21,9 +21,7 @@ app.include_router(counter.router)
 app.include_router(logs.router)
 app.include_router(historico.router)
 app.include_router(chat_history.router)
-#app.include_router(process_pdf.router)
 app.include_router(assistant.router)
-#app.include_router(title.router)
 app.include_router(auth.router)
 
 
